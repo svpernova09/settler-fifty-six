@@ -22,7 +22,20 @@ apt-add-repository ppa:nginx/development -y
 #apt-add-repository ppa:chris-lea/redis-server -y
 apt-add-repository ppa:ondrej/php -y
 
-curl --silent --location https://deb.nodesource.com/setup_8.x | bash -
+#curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
+#curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list
+
+# gpg: key 5072E1F5: public key "MySQL Release Engineering <mysql-build@oss.oracle.com>" imported
+# apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys 5072E1F5
+# sh -c 'echo "deb http://repo.mysql.com/apt/ubuntu/ xenial mysql-5.7" >> /etc/apt/sources.list.d/mysql.list'
+
+#echo 'deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main' >> /etc/apt/sources.list.d/pgdg.list
+#wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+
+wget -q -O - https://packages.blackfire.io/gpg.key | apt-key add -
+echo "deb http://packages.blackfire.io/debian any main" | tee /etc/apt/sources.list.d/blackfire.list
+
+curl --silent --location https://deb.nodesource.com/setup_10.x | bash -
 
 # Update Package Lists
 apt-get update
@@ -31,7 +44,7 @@ apt-get update
 
 apt-get install -y build-essential dos2unix gcc git libmcrypt4 libpcre3-dev libpng-dev ntp unzip \
 make python2.7-dev python-pip re2c supervisor unattended-upgrades whois vim libnotify-bin \
-pv cifs-utils mcrypt bash-completion zsh graphviz
+pv cifs-utils mcrypt bash-completion zsh graphviz avahi-daemon
 
 # Set My Timezone
 
@@ -40,6 +53,15 @@ ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 # Install PHP Stuffs
 # Current PHP
 apt-get install -y --allow-downgrades --allow-remove-essential --allow-change-held-packages \
+php7.3-cli php7.3-dev \
+php7.3-pgsql php7.3-sqlite3 php7.3-gd \
+php7.3-curl \
+php7.3-imap php7.3-mysql php7.3-mbstring \
+php7.3-xml php7.3-zip php7.3-bcmath php7.3-soap \
+php7.3-intl php7.3-readline
+
+# PHP 7.2
+apt-get install -y --allow-downgrades --allow-remove-essential --allow-change-held-packages \
 php7.2-cli php7.2-dev \
 php7.2-pgsql php7.2-sqlite3 php7.2-gd \
 php7.2-curl php7.2-memcached \
@@ -47,15 +69,6 @@ php7.2-imap php7.2-mysql php7.2-mbstring \
 php7.2-xml php7.2-zip php7.2-bcmath php7.2-soap \
 php7.2-intl php7.2-readline php7.2-ldap \
 php-xdebug php-pear
-
-# PHP 7.3
-apt-get install -y --allow-downgrades --allow-remove-essential --allow-change-held-packages \
-php7.3-cli php7.3-dev \
-php7.3-pgsql php7.3-sqlite3 php7.3-gd \
-php7.3-curl \
-php7.3-imap php7.3-mysql php7.3-mbstring \
-php7.3-xml php7.3-zip php7.3-bcmath php7.3-soap \
-php7.3-intl php7.3-readline
 
 # PHP 7.1
 apt-get install -y --allow-downgrades --allow-remove-essential --allow-change-held-packages \
@@ -84,18 +97,19 @@ php5.6-imap php5.6-mysql php5.6-mbstring \
 php5.6-xml php5.6-zip php5.6-bcmath php5.6-soap \
 php5.6-intl php5.6-readline php5.6-mcrypt
 
-update-alternatives --set php /usr/bin/php7.2
-update-alternatives --set php-config /usr/bin/php-config7.2
-update-alternatives --set phpize /usr/bin/phpize7.2
+update-alternatives --set php /usr/bin/php7.3
+update-alternatives --set php-config /usr/bin/php-config7.3
+update-alternatives --set phpize /usr/bin/phpize7.3
 
 # Install Composer
 
 curl -sS https://getcomposer.org/installer | php
 mv composer.phar /usr/local/bin/composer
 
-# Install Laravel Envoy & Installer
+# Install Laravel Envoy, Installer, and prestissimo for parallel downloads
 
 sudo su vagrant <<'EOF'
+/usr/local/bin/composer global require hirak/prestissimo
 /usr/local/bin/composer global require "laravel/envoy=~1.0"
 /usr/local/bin/composer global require "laravel/installer=~2.0"
 /usr/local/bin/composer global require "laravel/lumen-installer=~1.0"
@@ -143,17 +157,17 @@ touch /home/vagrant/.config/nginx/nginx.conf
 sudo ln -sf /home/vagrant/.config/nginx/nginx.conf /etc/nginx/conf.d/nginx.conf
 
 # Setup Some PHP-FPM Options
-echo "xdebug.remote_enable = 1" >> /etc/php/7.2/mods-available/xdebug.ini
-echo "xdebug.remote_connect_back = 1" >> /etc/php/7.2/mods-available/xdebug.ini
-echo "xdebug.remote_port = 9000" >> /etc/php/7.2/mods-available/xdebug.ini
-echo "xdebug.max_nesting_level = 512" >> /etc/php/7.2/mods-available/xdebug.ini
-echo "opcache.revalidate_freq = 0" >> /etc/php/7.2/mods-available/opcache.ini
-
 echo "xdebug.remote_enable = 1" >> /etc/php/7.3/mods-available/xdebug.ini
 echo "xdebug.remote_connect_back = 1" >> /etc/php/7.3/mods-available/xdebug.ini
 echo "xdebug.remote_port = 9000" >> /etc/php/7.3/mods-available/xdebug.ini
 echo "xdebug.max_nesting_level = 512" >> /etc/php/7.3/mods-available/xdebug.ini
 echo "opcache.revalidate_freq = 0" >> /etc/php/7.3/mods-available/opcache.ini
+
+echo "xdebug.remote_enable = 1" >> /etc/php/7.2/mods-available/xdebug.ini
+echo "xdebug.remote_connect_back = 1" >> /etc/php/7.2/mods-available/xdebug.ini
+echo "xdebug.remote_port = 9000" >> /etc/php/7.2/mods-available/xdebug.ini
+echo "xdebug.max_nesting_level = 512" >> /etc/php/7.2/mods-available/xdebug.ini
+echo "opcache.revalidate_freq = 0" >> /etc/php/7.2/mods-available/opcache.ini
 
 echo "xdebug.remote_enable = 1" >> /etc/php/7.1/mods-available/xdebug.ini
 echo "xdebug.remote_connect_back = 1" >> /etc/php/7.1/mods-available/xdebug.ini
@@ -173,20 +187,6 @@ echo "xdebug.remote_port = 9000" >> /etc/php/5.6/mods-available/xdebug.ini
 echo "xdebug.max_nesting_level = 512" >> /etc/php/5.6/mods-available/xdebug.ini
 echo "opcache.revalidate_freq = 0" >> /etc/php/5.6/mods-available/opcache.ini
 
-sed -i "s/error_reporting = .*/error_reporting = E_ALL/" /etc/php/7.2/fpm/php.ini
-sed -i "s/display_errors = .*/display_errors = On/" /etc/php/7.2/fpm/php.ini
-sed -i "s/;cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/" /etc/php/7.2/fpm/php.ini
-sed -i "s/memory_limit = .*/memory_limit = 512M/" /etc/php/7.2/fpm/php.ini
-sed -i "s/upload_max_filesize = .*/upload_max_filesize = 100M/" /etc/php/7.2/fpm/php.ini
-sed -i "s/post_max_size = .*/post_max_size = 100M/" /etc/php/7.2/fpm/php.ini
-sed -i "s/;date.timezone.*/date.timezone = UTC/" /etc/php/7.2/fpm/php.ini
-
-printf "[openssl]\n" | tee -a /etc/php/7.2/fpm/php.ini
-printf "openssl.cainfo = /etc/ssl/certs/ca-certificates.crt\n" | tee -a /etc/php/7.2/fpm/php.ini
-
-printf "[curl]\n" | tee -a /etc/php/7.2/fpm/php.ini
-printf "curl.cainfo = /etc/ssl/certs/ca-certificates.crt\n" | tee -a /etc/php/7.2/fpm/php.ini
-
 sed -i "s/error_reporting = .*/error_reporting = E_ALL/" /etc/php/7.3/fpm/php.ini
 sed -i "s/display_errors = .*/display_errors = On/" /etc/php/7.3/fpm/php.ini
 sed -i "s/;cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/" /etc/php/7.3/fpm/php.ini
@@ -200,6 +200,20 @@ printf "openssl.cainfo = /etc/ssl/certs/ca-certificates.crt\n" | tee -a /etc/php
 
 printf "[curl]\n" | tee -a /etc/php/7.3/fpm/php.ini
 printf "curl.cainfo = /etc/ssl/certs/ca-certificates.crt\n" | tee -a /etc/php/7.3/fpm/php.ini
+
+sed -i "s/error_reporting = .*/error_reporting = E_ALL/" /etc/php/7.2/fpm/php.ini
+sed -i "s/display_errors = .*/display_errors = On/" /etc/php/7.2/fpm/php.ini
+sed -i "s/;cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/" /etc/php/7.2/fpm/php.ini
+sed -i "s/memory_limit = .*/memory_limit = 512M/" /etc/php/7.2/fpm/php.ini
+sed -i "s/upload_max_filesize = .*/upload_max_filesize = 100M/" /etc/php/7.2/fpm/php.ini
+sed -i "s/post_max_size = .*/post_max_size = 100M/" /etc/php/7.2/fpm/php.ini
+sed -i "s/;date.timezone.*/date.timezone = UTC/" /etc/php/7.2/fpm/php.ini
+
+printf "[openssl]\n" | tee -a /etc/php/7.2/fpm/php.ini
+printf "openssl.cainfo = /etc/ssl/certs/ca-certificates.crt\n" | tee -a /etc/php/7.2/fpm/php.ini
+
+printf "[curl]\n" | tee -a /etc/php/7.2/fpm/php.ini
+printf "curl.cainfo = /etc/ssl/certs/ca-certificates.crt\n" | tee -a /etc/php/7.2/fpm/php.ini
 
 sed -i "s/error_reporting = .*/error_reporting = E_ALL/" /etc/php/7.1/fpm/php.ini
 sed -i "s/display_errors = .*/display_errors = On/" /etc/php/7.1/fpm/php.ini
@@ -270,19 +284,19 @@ EOF
 sed -i "s/user www-data;/user vagrant;/" /etc/nginx/nginx.conf
 sed -i "s/# server_names_hash_bucket_size.*/server_names_hash_bucket_size 64;/" /etc/nginx/nginx.conf
 
-sed -i "s/user = www-data/user = vagrant/" /etc/php/7.2/fpm/pool.d/www.conf
-sed -i "s/group = www-data/group = vagrant/" /etc/php/7.2/fpm/pool.d/www.conf
-
-sed -i "s/listen\.owner.*/listen.owner = vagrant/" /etc/php/7.2/fpm/pool.d/www.conf
-sed -i "s/listen\.group.*/listen.group = vagrant/" /etc/php/7.2/fpm/pool.d/www.conf
-sed -i "s/;listen\.mode.*/listen.mode = 0666/" /etc/php/7.2/fpm/pool.d/www.conf
-
 sed -i "s/user = www-data/user = vagrant/" /etc/php/7.3/fpm/pool.d/www.conf
 sed -i "s/group = www-data/group = vagrant/" /etc/php/7.3/fpm/pool.d/www.conf
 
 sed -i "s/listen\.owner.*/listen.owner = vagrant/" /etc/php/7.3/fpm/pool.d/www.conf
 sed -i "s/listen\.group.*/listen.group = vagrant/" /etc/php/7.3/fpm/pool.d/www.conf
 sed -i "s/;listen\.mode.*/listen.mode = 0666/" /etc/php/7.3/fpm/pool.d/www.conf
+
+sed -i "s/user = www-data/user = vagrant/" /etc/php/7.2/fpm/pool.d/www.conf
+sed -i "s/group = www-data/group = vagrant/" /etc/php/7.2/fpm/pool.d/www.conf
+
+sed -i "s/listen\.owner.*/listen.owner = vagrant/" /etc/php/7.2/fpm/pool.d/www.conf
+sed -i "s/listen\.group.*/listen.group = vagrant/" /etc/php/7.2/fpm/pool.d/www.conf
+sed -i "s/;listen\.mode.*/listen.mode = 0666/" /etc/php/7.2/fpm/pool.d/www.conf
 
 sed -i "s/user = www-data/user = vagrant/" /etc/php/7.1/fpm/pool.d/www.conf
 sed -i "s/group = www-data/group = vagrant/" /etc/php/7.1/fpm/pool.d/www.conf
@@ -376,6 +390,10 @@ echo "host    all             all             10.0.2.2/32               md5" | t
 sudo -u postgres psql -c "CREATE ROLE homestead LOGIN PASSWORD 'secret' SUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;"
 sudo -u postgres /usr/bin/createdb --echo --owner=homestead homestead
 service postgresql restart
+
+# Install Blackfire
+
+apt-get install -y blackfire-agent blackfire-php
 
 # Install The Chrome Web Driver & Dusk Utilities
 
@@ -474,7 +492,7 @@ tar -C /usr/local -xzf golang.tar.gz go
 printf "\nPATH=\"/usr/local/go/bin:\$PATH\"\n" | tee -a /home/vagrant/.profile
 rm -rf golang.tar.gz
 
-# Install & Configure Postfix
+# Install & Configure Postfix]
 
 echo "postfix postfix/mailname string homestead.test" | debconf-set-selections
 echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
@@ -498,6 +516,7 @@ apt-get -y upgrade
 apt-get -y autoremove
 apt-get -y clean
 chown -R vagrant:vagrant /home/vagrant
+chown -R vagrant:vagrant /usr/local/bin
 
 # Add Composer Global Bin To Path
 
